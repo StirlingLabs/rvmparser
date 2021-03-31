@@ -272,6 +272,286 @@ namespace {
     return p;
   }
 
+  const char* parse_obst(Context* ctx, const char* p, const char* e)
+  {
+    assert(!ctx->group_stack.empty());
+    if (ctx->group_stack.back()->kind != Group::Kind::Group) {
+      ctx->store->setErrorString("In OBST, parent chunk is not CNTB");
+      return nullptr;
+    }
+
+    uint32_t version, kind;
+    p = read_uint32_be(version, p, e);
+    p = read_uint32_be(kind, p, e);
+
+    //auto* g = ctx->store->newGeometry(ctx->group_stack.back());
+    float_t dummy_float;
+    uint32_t dummy_int;
+    uint32_t polygons_n, contours_n, vertices_n;
+
+    for (unsigned i = 0; i < 12; i++) {
+      p = read_float32_be(dummy_float, p, e);
+    }
+    for (unsigned i = 0; i < 6; i++) {
+      p = read_float32_be(dummy_float, p, e);
+    }
+    //g->bboxWorld = transform(g->M_3x4, g->bboxLocal);
+
+    p = read_uint32_be(dummy_int, p, e);
+
+    switch (kind) {
+    case 1:
+      //g->kind = Geometry::Kind::Pyramid;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 2:
+      //g->kind = Geometry::Kind::Box;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 3:
+      //g->kind = Geometry::Kind::RectangularTorus;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 4:
+      //g->kind = Geometry::Kind::CircularTorus;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 5:
+      //g->kind = Geometry::Kind::EllipticalDish;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 6:
+      //g->kind = Geometry::Kind::SphericalDish;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 7:
+      //g->kind = Geometry::Kind::Snout;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 8:
+      //g->kind = Geometry::Kind::Cylinder;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 9:
+      //g->kind = Geometry::Kind::Cylinder;
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 10:
+      //g->kind = Geometry::Kind::Line;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 11:
+      //g->kind = Geometry::Kind::FacetGroup;
+
+      p = read_uint32_be(polygons_n, p, e);
+      //g->facetGroup.polygons = (Polygon*)ctx->store->arena.alloc(sizeof(Polygon) * g->facetGroup.polygons_n);
+      for (unsigned pi = 0; pi < polygons_n; pi++) {
+        //auto& poly = g->facetGroup.polygons[pi];
+
+        p = read_uint32_be(contours_n, p, e);
+        //poly.contours = (Contour*)ctx->store->arena.alloc(sizeof(Contour) * poly.contours_n);
+        for (unsigned gi = 0; gi < contours_n; gi++) {
+          //auto& cont = poly.contours[gi];
+
+          p = read_uint32_be(vertices_n, p, e);
+          //cont.vertices = (float*)ctx->store->arena.alloc(3 * sizeof(float) * cont.vertices_n);
+          //cont.normals = (float*)ctx->store->arena.alloc(3 * sizeof(float) * cont.vertices_n);
+          for (unsigned vi = 0; vi < vertices_n; vi++) {
+            for (unsigned i = 0; i < 3; i++) {
+              p = read_float32_be(dummy_float, p, e);
+            }
+            for (unsigned i = 0; i < 3; i++) {
+              p = read_float32_be(dummy_float, p, e);
+            }
+          }
+        }
+      }
+      break;
+
+    default:
+      snprintf(ctx->buf, ctx->buf_size, "In OBST, unknown primitive kind %d", kind);
+      ctx->store->setErrorString(ctx->buf);
+      return nullptr;
+    }
+
+    return p;
+  }
+
+  const char* parse_insu(Context* ctx, const char* p, const char* e)
+  {
+    assert(!ctx->group_stack.empty());
+    if (ctx->group_stack.back()->kind != Group::Kind::Group) {
+      ctx->store->setErrorString("In INSU, parent chunk is not CNTB");
+      return nullptr;
+    }
+
+    uint32_t version, kind;
+    p = read_uint32_be(version, p, e);
+    p = read_uint32_be(kind, p, e);
+
+    //auto* g = ctx->store->newGeometry(ctx->group_stack.back());
+    float_t dummy_float;
+    uint32_t dummy_int;
+    uint32_t polygons_n, contours_n, vertices_n;
+
+    for (unsigned i = 0; i < 12; i++) {
+      p = read_float32_be(dummy_float, p, e);
+    }
+    for (unsigned i = 0; i < 6; i++) {
+      p = read_float32_be(dummy_float, p, e);
+    }
+    //g->bboxWorld = transform(g->M_3x4, g->bboxLocal);
+
+    p = read_uint32_be(dummy_int, p, e);
+
+    switch (kind) {
+    case 1:
+      //g->kind = Geometry::Kind::Pyramid;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 2:
+      //g->kind = Geometry::Kind::Box;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 3:
+      //g->kind = Geometry::Kind::RectangularTorus;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 4:
+      //g->kind = Geometry::Kind::CircularTorus;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 5:
+      //g->kind = Geometry::Kind::EllipticalDish;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 6:
+      //g->kind = Geometry::Kind::SphericalDish;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 7:
+      //g->kind = Geometry::Kind::Snout;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 8:
+      //g->kind = Geometry::Kind::Cylinder;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 9:
+      //g->kind = Geometry::Kind::Cylinder;
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 10:
+      //g->kind = Geometry::Kind::Line;
+      p = read_float32_be(dummy_float, p, e);
+      p = read_float32_be(dummy_float, p, e);
+      break;
+
+    case 11:
+      //g->kind = Geometry::Kind::FacetGroup;
+
+      p = read_uint32_be(polygons_n, p, e);
+      //g->facetGroup.polygons = (Polygon*)ctx->store->arena.alloc(sizeof(Polygon) * g->facetGroup.polygons_n);
+      for (unsigned pi = 0; pi < polygons_n; pi++) {
+        //auto& poly = g->facetGroup.polygons[pi];
+
+        p = read_uint32_be(contours_n, p, e);
+        //poly.contours = (Contour*)ctx->store->arena.alloc(sizeof(Contour) * poly.contours_n);
+        for (unsigned gi = 0; gi < contours_n; gi++) {
+          //auto& cont = poly.contours[gi];
+
+          p = read_uint32_be(vertices_n, p, e);
+          //cont.vertices = (float*)ctx->store->arena.alloc(3 * sizeof(float) * cont.vertices_n);
+          //cont.normals = (float*)ctx->store->arena.alloc(3 * sizeof(float) * cont.vertices_n);
+          for (unsigned vi = 0; vi < vertices_n; vi++) {
+            for (unsigned i = 0; i < 3; i++) {
+              p = read_float32_be(dummy_float, p, e);
+            }
+            for (unsigned i = 0; i < 3; i++) {
+              p = read_float32_be(dummy_float, p, e);
+            }
+          }
+        }
+      }
+      break;
+
+    default:
+      snprintf(ctx->buf, ctx->buf_size, "In INSU, unknown primitive kind %d", kind);
+      ctx->store->setErrorString(ctx->buf);
+      return nullptr;
+    }
+
+    return p;
+  }
+
   const char* parse_cntb(Context* ctx, const char* p, const char* e)
   {
     assert(!ctx->group_stack.empty());
@@ -307,6 +587,14 @@ namespace {
         break;
       case id("PRIM"):
         p = parse_prim(ctx, p, e);
+        if (p == nullptr) return p;
+        break;
+      case id("OBST"):
+        p = parse_obst(ctx, p, e);
+        if (p == nullptr) return p;
+        break;
+      case id("INSU"):
+        p = parse_insu(ctx, p, e);
         if (p == nullptr) return p;
         break;
       default:
