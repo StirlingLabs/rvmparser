@@ -573,6 +573,11 @@ namespace {
 
     p = read_uint32_be(g->group.material, p, e);
 
+    if (version >= 3) {
+      uint32_t dunno;
+      p = read_uint32_be(dunno, p, e);
+    }
+
     // process children
     char chunk_id[5] = { 0, 0, 0, 0, 0 };
     auto l = p;
