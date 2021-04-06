@@ -1,12 +1,15 @@
 #pragma once
 #include <cstdio>
 
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/filewritestream.h>
 #include <rapidjson/document.h>
 
 #include "Common.h"
 #include "StoreVisitor.h"
 
-class ExportSL : public StoreVisitor
+class ExportSL final : public StoreVisitor
 {
 public:
   ~ExportSL();
@@ -21,7 +24,7 @@ public:
 
   //void endFile() override;
 
-  void beginModel(struct Group* group);
+  void beginModel(struct Group* group) override;
 
   void endModel() override;
 
@@ -48,9 +51,16 @@ public:
   void endGeometries() override;
 
 private:
+  //char* writeBuffer = nullptr;
   FILE* out = nullptr;
   Store* store = nullptr;
-  rapidjson::Document* jDoc = nullptr;
+  std::vector<rapidjson::Value> asmVec;
+  rapidjson::Document::AllocatorType* allocator = nullptr;
+  rapidjson::Document jDoc = nullptr;
 
-  void writeAttributes(struct Group* group);
+  unsigned off_v = 1;
+  unsigned off_n = 1;
+  unsigned off_t = 1;
+
+  void writeAttributes(rapidjson::Value& value, struct Group* group);
 };

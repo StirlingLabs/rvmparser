@@ -164,6 +164,7 @@ int main(int argc, char** argv)
   std::string output_txt;
   std::string output_obj_stem;
   std::string color_attribute;
+  std::string output_sl;
   
 
   std::vector<std::string> attributeSuffices = { ".txt",  ".att" };
@@ -225,6 +226,11 @@ int main(int argc, char** argv)
         }
         else if (key == "--chunk-tiny") {
           chunkTinyVertexThreshold = std::stoul(val);
+          should_tessellate = true;
+          continue;
+        }
+        else if (key == "--output-sl") {
+          output_sl = val;
           should_tessellate = true;
           continue;
         }
@@ -390,6 +396,24 @@ int main(int argc, char** argv)
     }
     else {
       logger(2, "Failed to export obj file.\n");
+      rv = -1;
+    }
+  }
+
+  if (rv == 0 && !output_sl.empty()) {
+    assert(should_tessellate);
+
+    auto time0 = std::chrono::high_resolution_clock::now();
+    ExportSL exportSL;
+    if (exportSL.open(output_sl.c_str())) {
+      store->apply(&exportSL);
+
+      auto time1 = std::chrono::high_resolution_clock::now();
+      auto e = std::chrono::duration_cast<std::chrono::milliseconds>((time1 - time0)).count();
+      logger(0, "Exported sl into %s.json (%lldms)", output_obj_stem.c_str(), e);
+    }
+    else {
+      logger(2, "Failed to export json file.\n");
       rv = -1;
     }
   }
