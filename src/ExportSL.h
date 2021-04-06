@@ -30,13 +30,13 @@ public:
 
   void beginGroup(struct Group* group) override;
 
-  //void doneGroupContents(struct Group* group) {}
+  //void doneGroupContents(struct Group* group) override;
 
   void EndGroup() override;
 
-  //void beginChildren(struct Group* container) override;
+  void beginChildren(struct Group* container) override;
 
-  //void endChildren() override;
+  void endChildren() override;
 
   //void beginAttributes(struct Group* container) override;
 
@@ -54,7 +54,7 @@ private:
   //char* writeBuffer = nullptr;
   FILE* out = nullptr;
   Store* store = nullptr;
-  std::vector<rapidjson::Value> asmVec;
+  std::vector<rapidjson::Value> asmStack;
   rapidjson::Document::AllocatorType* allocator = nullptr;
   rapidjson::Document jDoc = nullptr;
 
@@ -63,4 +63,24 @@ private:
   unsigned off_t = 1;
 
   void writeAttributes(rapidjson::Value& value, struct Group* group);
+
+  inline rapidjson::Value& stage(rapidjson::Type type) { return asmStack.emplace_back(type); }
+
+  inline void commit() {
+    rapidjson::Value& val = asmStack.back();
+    assert(val.IsArray());
+    asmStack[asmStack.size() - 2].PushBack(std::move(val), *allocator);
+    asmStack.pop_back();
+  }
+  
+  inline void commit(rapidjson::GenericStringRef<char> key) {
+    rapidjson::Value& val = asmStack.back();
+    assert(val.IsObject());
+    asmStack[asmStack.size() - 2].AddMember(key, std::move(val), *allocator);
+    asmStack.pop_back();
+  }
+  
+  inline void discard() {
+    asmStack.pop_back();
+  }
 };
