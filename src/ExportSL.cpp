@@ -4,6 +4,9 @@
 #include "Store.h"
 #include "LinAlgOps.h"
 
+#define NAME(s) { s, sizeof(s) / sizeof(s[0]) - 1, rapidjson::kPointerInvalidIndex }
+#define INDEX(i) { #i, sizeof(#i) - 1, i }
+
 namespace rj = rapidjson;
 
 namespace {
@@ -47,52 +50,31 @@ void ExportSL::init(class Store& store) {
   assert(out);
 
   this->store = &store;
-
+  assert(!store.getFirstRoot()->next);
+  
   jDoc = rj::Document(rj::kObjectType);
   allocator = &jDoc.GetAllocator();
 }
 
 void ExportSL::beginModel(Group* group)
-{  
+{
+  assert(tokenStack.empty());
   // Begin Root Object
-  //jDoc.StartObject();
   jDoc.AddMember("transformsTransposed", false, *allocator);
-  //jDoc.Key("transformsTransposed", sizeof("transformsTransposed"), true);
-  //jDoc.Bool(false);
   jDoc.AddMember("rotationsTransposed", false, *allocator);
-  //jDoc.Key("rotationsTransposed", sizeof("rotationsTransposed"), true);
-  //jDoc.Bool(false);
 
   // Begin root assembly
-  //jDoc.Key("root", sizeof("root"), true);
-  //jDoc.StartObject();
-  //jDoc.AddMember("root", rj::Value(rj::kObjectType), *allocator);
-  asmStack.emplace_back(rj::kObjectType);
-  //jDoc.Key("typeIdName", sizeof("typeIdName"), true);
-  //jDoc.String("JtkAssembly", sizeof("JtkAssembly"), true);
-  asmStack.back().AddMember("typeIdName", "JtkAssembly", *allocator);
-  //jDoc.Key("assemblies", sizeof("assemblies"), true);
-  //jDoc.StartArray();
-  asmStack.emplace_back(rj::kArrayType);
+  jDoc.AddMember("root", rj::kObjectType, *allocator)
+    .AddMember("typeIdName", "JtkAssembly", *allocator);
+  //rootAsm.AddMember("assemblies", rj::kArrayType, *allocator);
+  static constexpr const rj::Pointer::Token const rootAsm NAME("root");
+  tokenStack.push_back(rootAsm);
 }
 
 void ExportSL::endModel()
 {
-  //assert(jDoc.IsArray());
-  rj::Value& assemblies = asmStack.back();
-  assert(assemblies.IsArray());
-  // ] /* End root assembly array */
-  //jDoc.EndArray(1);
-  asmStack[asmStack.size() - 2].AddMember("assemblies", assemblies, *allocator);
-  asmStack.pop_back();
-  // } /* End root assembly */
-  rj::Value& rootAsm = asmStack.back();
-  assert(rootAsm.IsObject());
-  jDoc.AddMember("root", rootAsm, *allocator);
-  asmStack.pop_back();
-  // } /* End JsonRoot */
-  //jDoc.EndObject(2);
-  assert(asmStack.empty());
+  tokenStack.pop_back();
+  assert(tokenStack.empty());
   
   // Write to file
   char writeBuffer[8192];
@@ -104,71 +86,65 @@ void ExportSL::endModel()
 
 void ExportSL::beginGroup(Group* group)
 {
-  assert(asmStack.back().IsArray());
   //  { /* Begin assembly */
-  //jDoc.StartObject();
-  asmStack.emplace_back(rj::kObjectType);
-  //jDoc.Key("typeIdName", sizeof("typeIdName"), true);
-  //jDoc.String("JtkAssembly", sizeof("JtkAssembly"), true);
-  asmStack.back().AddMember("typeIdName", "JtkAssembly", *allocator);
+  static constexpr const rj::Pointer::Token const asmListIdx INDEX(0);
+  rj::Pointer(tokenStack.data(), tokenStack.size()).Set(jDoc, "JtkAssembly");
 }
 
 void ExportSL::EndGroup()
 {
-  rj::Value& my_asm = asmStack.back();
-  assert(my_asm.IsObject());
-  rj::Value& assemblies = asmStack[asmStack.size() - 2];
-  assert(assemblies.IsArray());
-  assemblies.PushBack(my_asm, *allocator);
-  asmStack.pop_back();
+  //rj::Value& my_asm = asmStack.back();
+  //rj::Value& assemblies = asmStack[asmStack.size() - 2];
+  //assert(my_asm.IsObject());
+  //assert(assemblies.IsArray());
+  //assemblies.PushBack(my_asm, *allocator);
+  //asmStack.pop_back();
+  tokenStack.pop_back();
 }
 
 void ExportSL::beginChildren(Group* container)
 {
-  assert(asmStack.back().IsObject());
+  //assert(asmStack.back().IsObject());
   // "assemblies": [
   //jDoc.Key("assemblies", sizeof("assemblies"), true);
   //jDoc.StartArray();
-  asmStack.emplace_back(rj::kArrayType);
+  //asmStack.emplace_back(rj::kArrayType);
+  static constexpr const rj::Pointer::Token const asmList NAME("assemblies");
+  static constexpr const rj::Pointer::Token const asmListIdx INDEX(0);
+  tokenStack.push_back(asmList);
+  tokenStack.push_back(asmListIdx);
 }
 
 void ExportSL::endChildren()
 {
-  rj::Value& assemblies = asmStack.back();
-  rj::Value& my_asm = asmStack[asmStack.size() - 2];
-  assert(assemblies.IsArray());
-  assert(my_asm.IsObject());
-  my_asm.AddMember("assemblies", assemblies, *allocator);
-  asmStack.pop_back();
+  //rj::Value& assemblies = asmStack.back();
+  //rj::Value& my_asm = asmStack[asmStack.size() - 2];
+  //assert(assemblies.IsArray());
+  //assert(my_asm.IsObject());
+  //my_asm.AddMember("assemblies", assemblies, *allocator);
+  //asmStack.pop_back();
+  assert(tokenStack.back().index != rj::kPointerInvalidIndex);
+  tokenStack.pop_back();
+  tokenStack.pop_back();
 }
 
 void ExportSL::beginGeometries(struct Group* container)
 {
-  assert(asmStack.back().IsObject());
-  // "parts" = [ /* Begin parts array */
-  //jDoc.Key("parts", sizeof("parts"), true);
-  //jDoc.StartArray();
-  asmStack.emplace_back(rj::kArrayType);
+  static constexpr const rj::Pointer::Token const tokens[]{ NAME("parts"), INDEX(0), NAME("shapeLods"), INDEX(0), INDEX(0), INDEX(0) };
 
-  // Begin the first part
+  assert(tokenStack.back().index != rj::kPointerInvalidIndex);
   assert(container->kind == Group::Kind::Group && container->group.geometries.first != nullptr);
-  //jDoc.StartObject();
-  asmStack.emplace_back(rj::kObjectType);
-  //jDoc.Key("typeIdName", sizeof("typeIdName"), true);
-  //jDoc.String("JtkPart", sizeof("JtkPart"), true);
-  asmStack.back().AddMember("typeIdName", "JtkPart", *allocator);
-  //jDoc.Key("shapeLods", sizeof("shapeLods"), true);
-  //jDoc.StartArray();
-  asmStack.emplace_back(rj::kArrayType);
-  //jDoc.StartArray();
-  asmStack.emplace_back(rj::kArrayType);
-  //jDoc.StartArray();
-  asmStack.emplace_back(rj::kArrayType);
+  tokenStack.insert(tokenStack.end(), tokens, tokens+(sizeof(tokens)/sizeof(tokens[0])));
+
+  // "parts" = [ /* Begin parts array */
+  rj::Pointer(tokenStack.data(), tokenStack.size() - 4)
+    .Set(jDoc, rj::kObjectType)
+    .AddMember("typeIdName", "JtkPart", *allocator);
 }
 
 void ExportSL::geometry(struct Geometry* geometry)
 {
-  assert(asmStack.back().IsArray());
+  //assert(asmStack.back().IsArray());
   if (geometry->kind == Geometry::Kind::Line)
     return;
 
@@ -267,35 +243,46 @@ void ExportSL::geometry(struct Geometry* geometry)
     }
   }
   // /* End ShapeSet */
-  asmStack.back().PushBack(std::move(shapeLod), *allocator);
+  //asmStack.back().PushBack(std::move(shapeLod), *allocator);
+  rj::Pointer(tokenStack.data(), tokenStack.size()).Set(jDoc, shapeLod);
+  auto& token = tokenStack.back();
+  rj::SizeType i = token.index + 1;
+  token = INDEX(i);
 }
 
 void ExportSL::endGeometries()
 {
   //jDoc.EndArray(3);
   //jDoc.EndObject(1);
-  rj::Value& lods = asmStack[asmStack.size() - 1];
-  rj::Value& lodsList = asmStack[asmStack.size() - 2];
-  rj::Value& lodsListList = asmStack[asmStack.size() - 3];
-  rj::Value& part = asmStack[asmStack.size() - 4];
-  rj::Value& parts = asmStack[asmStack.size() - 5];
-  rj::Value& my_asm = asmStack[asmStack.size() - 6];
-  assert(lods.IsArray());
-  assert(lodsList.IsArray());
-  assert(lodsListList.IsArray());
-  assert(part.IsObject());
-  assert(parts.IsArray());
-  assert(my_asm.IsObject());
-  lodsList.PushBack(lods, *allocator);
-  lodsListList.PushBack(lodsList, *allocator);
-  part.AddMember("shapeLods", lodsListList, *allocator);
-  parts.PushBack(part, *allocator);
-  my_asm.AddMember("parts", parts, *allocator);
-  asmStack.pop_back();
-  asmStack.pop_back();
-  asmStack.pop_back();
-  asmStack.pop_back();
-  asmStack.pop_back();
+  //rj::Value& lods = asmStack[asmStack.size() - 1];
+  //rj::Value& lodsList = asmStack[asmStack.size() - 2];
+  //rj::Value& lodsListList = asmStack[asmStack.size() - 3];
+  //rj::Value& part = asmStack[asmStack.size() - 4];
+  //rj::Value& parts = asmStack[asmStack.size() - 5];
+  //rj::Value& my_asm = asmStack[asmStack.size() - 6];
+  //assert(lods.IsArray());
+  //assert(lodsList.IsArray());
+  //assert(lodsListList.IsArray());
+  //assert(part.IsObject());
+  //assert(parts.IsArray());
+  //assert(my_asm.IsObject());
+  //lodsList.PushBack(lods, *allocator);
+  //lodsListList.PushBack(lodsList, *allocator);
+  //part.AddMember("shapeLods", lodsListList, *allocator);
+  //parts.PushBack(part, *allocator);
+  //my_asm.AddMember("parts", parts, *allocator);
+  //asmStack.pop_back();
+  //asmStack.pop_back();
+  //asmStack.pop_back();
+  //asmStack.pop_back();
+  //asmStack.pop_back();
+
+  tokenStack.pop_back();
+  tokenStack.pop_back();
+  tokenStack.pop_back();
+  tokenStack.pop_back();
+  tokenStack.pop_back();
+  tokenStack.pop_back();
 }
 
 inline void ExportSL::writeAttributes(rapidjson::Value& value, Group* group)
@@ -340,3 +327,6 @@ inline void ExportSL::writeAttributes(rapidjson::Value& value, Group* group)
   // components = ?
   attributes.AddMember("components", rj::Value(rj::kObjectType), *allocator);
 }
+
+#undef NAME
+#undef INDEX
