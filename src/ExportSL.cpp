@@ -43,13 +43,13 @@ ExportSL::~ExportSL()
 bool ExportSL::open(const char* path_obj)
 {
   return open_w(&out, path_obj);
-  return true;
 }
 
 void ExportSL::init(class Store& store) {
   assert(out);
 
   this->store = &store;
+  // Currently assuming there is only one file per export
   assert(!store.getFirstRoot()->next);
   
   jDoc = rj::Document(rj::kObjectType);
@@ -58,6 +58,7 @@ void ExportSL::init(class Store& store) {
 
 void ExportSL::beginModel(Group* group)
 {
+  // Currently assuming there is only one file per export
   assert(tokenStack.empty());
   // Begin Root Object
   jDoc.AddMember("transformsTransposed", false, *allocator);
@@ -93,22 +94,16 @@ void ExportSL::beginGroup(Group* group)
 
 void ExportSL::EndGroup()
 {
-  //rj::Value& my_asm = asmStack.back();
-  //rj::Value& assemblies = asmStack[asmStack.size() - 2];
-  //assert(my_asm.IsObject());
-  //assert(assemblies.IsArray());
-  //assemblies.PushBack(my_asm, *allocator);
-  //asmStack.pop_back();
+  //  } /* End assembly */
   tokenStack.pop_back();
 }
 
 void ExportSL::beginChildren(Group* container)
 {
-  //assert(asmStack.back().IsObject());
+  // Parent value should either be the root node or an array
+  rj::Pointer::Token& parent = tokenStack.back();
+  assert(parent.index != rj::kPointerInvalidIndex || parent.name == "root");
   // "assemblies": [
-  //jDoc.Key("assemblies", sizeof("assemblies"), true);
-  //jDoc.StartArray();
-  //asmStack.emplace_back(rj::kArrayType);
   static constexpr const rj::Pointer::Token const asmList NAME("assemblies");
   static constexpr const rj::Pointer::Token const asmListIdx INDEX(0);
   tokenStack.push_back(asmList);
@@ -117,13 +112,8 @@ void ExportSL::beginChildren(Group* container)
 
 void ExportSL::endChildren()
 {
-  //rj::Value& assemblies = asmStack.back();
-  //rj::Value& my_asm = asmStack[asmStack.size() - 2];
-  //assert(assemblies.IsArray());
-  //assert(my_asm.IsObject());
-  //my_asm.AddMember("assemblies", assemblies, *allocator);
-  //asmStack.pop_back();
   assert(tokenStack.back().index != rj::kPointerInvalidIndex);
+  //tokenStack.resize(tokenStack.size() - 2);
   tokenStack.pop_back();
   tokenStack.pop_back();
 }
@@ -132,11 +122,15 @@ void ExportSL::beginGeometries(struct Group* container)
 {
   static constexpr const rj::Pointer::Token const tokens[]{ NAME("parts"), INDEX(0), NAME("shapeLods"), INDEX(0), INDEX(0), INDEX(0) };
 
+  // All "parts" arrays should only exist in a JsonAssembly
   assert(tokenStack.back().index != rj::kPointerInvalidIndex);
+  // This assertion currently in the Store class that calls into the visitor,
+  // should that ever change, I want this to fail.
   assert(container->kind == Group::Kind::Group && container->group.geometries.first != nullptr);
-  tokenStack.insert(tokenStack.end(), tokens, tokens+(sizeof(tokens)/sizeof(tokens[0])));
+  
+  tokenStack.insert(tokenStack.end(), tokens, tokens + std::size(tokens));
 
-  // "parts" = [ /* Begin parts array */
+  // Create a "parts" array with the only part it should ever have in it.
   rj::Pointer(tokenStack.data(), tokenStack.size() - 4)
     .Set(jDoc, rj::kObjectType)
     .AddMember("typeIdName", "JtkPart", *allocator);
@@ -243,7 +237,6 @@ void ExportSL::geometry(struct Geometry* geometry)
     }
   }
   // /* End ShapeSet */
-  //asmStack.back().PushBack(std::move(shapeLod), *allocator);
   rj::Pointer(tokenStack.data(), tokenStack.size()).Set(jDoc, shapeLod);
   auto& token = tokenStack.back();
   rj::SizeType i = token.index + 1;
@@ -252,36 +245,24 @@ void ExportSL::geometry(struct Geometry* geometry)
 
 void ExportSL::endGeometries()
 {
-  //jDoc.EndArray(3);
-  //jDoc.EndObject(1);
-  //rj::Value& lods = asmStack[asmStack.size() - 1];
-  //rj::Value& lodsList = asmStack[asmStack.size() - 2];
-  //rj::Value& lodsListList = asmStack[asmStack.size() - 3];
-  //rj::Value& part = asmStack[asmStack.size() - 4];
-  //rj::Value& parts = asmStack[asmStack.size() - 5];
-  //rj::Value& my_asm = asmStack[asmStack.size() - 6];
-  //assert(lods.IsArray());
-  //assert(lodsList.IsArray());
-  //assert(lodsListList.IsArray());
-  //assert(part.IsObject());
-  //assert(parts.IsArray());
-  //assert(my_asm.IsObject());
-  //lodsList.PushBack(lods, *allocator);
-  //lodsListList.PushBack(lodsList, *allocator);
-  //part.AddMember("shapeLods", lodsListList, *allocator);
-  //parts.PushBack(part, *allocator);
-  //my_asm.AddMember("parts", parts, *allocator);
-  //asmStack.pop_back();
-  //asmStack.pop_back();
-  //asmStack.pop_back();
-  //asmStack.pop_back();
-  //asmStack.pop_back();
-
+  // The top of the stack should have an index value greater than 0
+  assert(tokenStack.back().index != rj::kPointerInvalidIndex);
   tokenStack.pop_back();
+  // The next index value should be 0
+  assert(tokenStack.back().index == 0);
   tokenStack.pop_back();
+  // This value should also be 0
+  assert(tokenStack.back().index == 0);
   tokenStack.pop_back();
+  // This token should have the name "shapeLods"
+  assert(tokenStack.back().index == rj::kPointerInvalidIndex);
   tokenStack.pop_back();
+  // This token should point inside a parts array,
+  // for our logic to work its value should always be zero
+  assert(tokenStack.back().index == 0);
   tokenStack.pop_back();
+  // This token should be named "parts"
+  assert(tokenStack.back().index == rj::kPointerInvalidIndex);
   tokenStack.pop_back();
 }
 
