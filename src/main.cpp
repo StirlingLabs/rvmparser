@@ -404,7 +404,7 @@ int main(int argc, char** argv)
     assert(should_tessellate);
 
     auto time0 = std::chrono::high_resolution_clock::now();
-    ExportSL exportSL;
+    ExportSL exportSL(output_sl.c_str());
     if (exportSL.open(output_sl.c_str())) {
       store->apply(&exportSL);
 

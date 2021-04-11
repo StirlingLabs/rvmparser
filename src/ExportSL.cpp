@@ -38,116 +38,107 @@ ExportSL::~ExportSL()
   if (out) {
     fclose(out);
   }
+  if (myBuf) {
+    delete myBuf;
+  }
+}
+
+ExportSL::ExportSL(const char* path_obj) : fileIsOpen(open_w(&out, path_obj)), myBuf(new char[2 << 16]), os(rj::FileWriteStream(out, myBuf, 2 << 16))
+{
 }
 
 bool ExportSL::open(const char* path_obj)
 {
-  return open_w(&out, path_obj);
+  //return (fileIsOpen = open_w(&out, path_obj));
+  return fileIsOpen;
 }
 
 void ExportSL::init(class Store& store) {
-  assert(out);
+  assert(fileIsOpen);
 
   this->store = &store;
   // Currently assuming there is only one file per export
   assert(!store.getFirstRoot()->next);
-  
-  jDoc = rj::Document(rj::kObjectType);
-  allocator = &jDoc.GetAllocator();
 
-  buf = rj::StringBuffer();
-  writer.Reset(buf);
+  writer.Reset(this->os);
 }
 
 void ExportSL::beginModel(Group* group)
 {
-  // Currently assuming there is only one file per export
-  assert(tokenStack.empty());
   // Begin Root Object
-  jDoc.AddMember("transformsTransposed", false, *allocator);
-  jDoc.AddMember("rotationsTransposed", false, *allocator);
+  writer.StartObject();
+  writer.Key("transformsTransposed");
+  writer.Bool(false);
+  writer.Key("rotationsTransposed");
+  writer.Bool(false);
 
   // Begin root assembly
-  jDoc.AddMember("root", rj::kObjectType, *allocator)
-    .AddMember("typeIdName", "JtkAssembly", *allocator);
-  //rootAsm.AddMember("assemblies", rj::kArrayType, *allocator);
-  static constexpr const rj::Pointer::Token const rootAsm NAME("root");
-  tokenStack.push_back(rootAsm);
+  writer.Key("root");
+  writer.StartObject();
+  writer.Key("typeIdName");
+  writer.String("JtkAssembly");
+  writer.Key("assemblies");
+  writer.StartArray();
 }
 
 void ExportSL::endModel()
 {
-  tokenStack.pop_back();
-  assert(tokenStack.empty());
-  
   // Write to file
-  char writeBuffer[8192];
-  rj::FileWriteStream os(out, writeBuffer, sizeof(writeBuffer));
-  rj::Writer<rj::FileWriteStream> writer(os);
-  jDoc.Accept(writer);
+  writer.EndArray();
+  writer.EndObject();
+  writer.EndObject();
+  assert(writer.IsComplete());
   writer.Flush();
 }
 
 void ExportSL::beginGroup(Group* group)
 {
   //  { /* Begin assembly */
-  static constexpr const rj::Pointer::Token const asmListIdx INDEX(0);
-  rj::Pointer(tokenStack.data(), tokenStack.size()).Set(jDoc, "JtkAssembly");
+  writer.StartObject();
+  writer.Key("typeIdName");
+  writer.String("JtkAssembly");
 }
 
 void ExportSL::EndGroup()
 {
   //  } /* End assembly */
-  tokenStack.pop_back();
+  writer.EndObject();
 }
 
 void ExportSL::beginChildren(Group* container)
 {
-  // Parent value should either be the root node or an array
-  rj::Pointer::Token& parent = tokenStack.back();
-  assert(parent.index != rj::kPointerInvalidIndex || parent.name == "root");
   // "assemblies": [
-  static constexpr const rj::Pointer::Token const asmList NAME("assemblies");
-  static constexpr const rj::Pointer::Token const asmListIdx INDEX(0);
-  tokenStack.push_back(asmList);
-  tokenStack.push_back(asmListIdx);
+  writer.Key("assemblies");
+  writer.StartArray();
 }
 
 void ExportSL::endChildren()
 {
-  assert(tokenStack.back().index != rj::kPointerInvalidIndex);
-  //tokenStack.resize(tokenStack.size() - 2);
-  tokenStack.pop_back();
-  tokenStack.pop_back();
+  writer.EndArray();
 }
 
 void ExportSL::beginGeometries(struct Group* container)
 {
-  static constexpr const rj::Pointer::Token const tokens[]{ NAME("parts"), INDEX(0), NAME("shapeLods"), INDEX(0), INDEX(0), INDEX(0) };
-
-  // All "parts" arrays should only exist in a JsonAssembly
-  assert(tokenStack.back().index != rj::kPointerInvalidIndex);
-  // This assertion currently in the Store class that calls into the visitor,
-  // should that ever change, I want this to fail.
-  assert(container->kind == Group::Kind::Group && container->group.geometries.first != nullptr);
-  
-  tokenStack.insert(tokenStack.end(), tokens, tokens + std::size(tokens));
-
-  // Create a "parts" array with the only part it should ever have in it.
-  rj::Pointer(tokenStack.data(), tokenStack.size() - 4)
-    .Set(jDoc, rj::kObjectType)
-    .AddMember("typeIdName", "JtkPart", *allocator);
+  writer.Key("parts");
+  writer.StartArray();
+  writer.StartObject();
+  writer.Key("typeIdName");
+  writer.String("JtkPart");
+  writer.Key("shapeLods");
+  writer.StartArray();
+  writer.StartArray();
+  writer.StartArray();
 }
 
 void ExportSL::geometry(struct Geometry* geometry)
 {
-  //assert(asmStack.back().IsArray());
   if (geometry->kind == Geometry::Kind::Line)
     return;
 
   // { /* Begin ShapeSet */
-  rj::Value shapeLod(rj::kObjectType);
-  shapeLod.AddMember("typeIdName", "IndexedTrianglesSet", *allocator);
+  writer.StartObject();
+  writer.Key("typeIdName");
+  writer.String("IndexedTrianglesSet");
 
   auto scale = 1.f;
 
@@ -164,46 +155,46 @@ void ExportSL::geometry(struct Geometry* geometry)
 
       // Vertices
       {
-        rj::Value vertices(rj::kArrayType);
-        vertices.Reserve(tri->vertices_n, *allocator);
+        writer.Key("vertices");
+        writer.StartArray();
         for (size_t i = 0; i < 3 * tri->vertices_n; i += 3) {
 
           auto p = scale * mul(geometry->M_3x4, Vec3f(tri->vertices + i));
 
           //fprintf(out, "v %f %f %f\n", p.x, p.y, p.z);
-          vertices.PushBack(p.x, *allocator);
-          vertices.PushBack(p.y, *allocator);
-          vertices.PushBack(p.z, *allocator);
+          writer.Double(p.x);
+          writer.Double(p.y);
+          writer.Double(p.z);
         }
-        shapeLod.AddMember("vertices", std::move(vertices), *allocator);
+        writer.EndArray();
       }
 
       // Normals
       {
-        rj::Value normals(rj::kArrayType);
-        normals.Reserve(tri->vertices_n, *allocator);
+        writer.Key("normals");
+        writer.StartArray();
         for (size_t i = 0; i < 3 * tri->vertices_n; i += 3) {
-
           auto n = normalize(mul(Mat3f(geometry->M_3x4.data), Vec3f(tri->normals + i)));
 
           //fprintf(out, "vn %f %f %f\n", n.x, n.y, n.z);
-          normals.PushBack(n.x, *allocator);
-          normals.PushBack(n.y, *allocator);
-          normals.PushBack(n.z, *allocator);
+          
+          writer.Double(std::isnan(n.x) ? 0 : n.x);
+          writer.Double(std::isnan(n.y) ? 0 : n.y);
+          writer.Double(std::isnan(n.z) ? 0 : n.z);
         }
-        shapeLod.AddMember("normals", std::move(normals), *allocator);
+        writer.EndArray();
       }
 
       if (tri->texCoords) {
-        rj::Value texCoords(rj::kArrayType);
-        texCoords.Reserve(tri->vertices_n, *allocator);
+        writer.Key("texCoord0s");
+        writer.StartArray();
         for (size_t i = 0; i < tri->vertices_n; i++) {
           const Vec2f vt(tri->texCoords + 2 * i);
           //fprintf(out, "vt %f %f\n", vt.x, vt.y);
-          texCoords.PushBack(vt.x, *allocator);
-          texCoords.PushBack(vt.y, *allocator);
+          writer.Double(vt.x);
+          writer.Double(vt.y);
         }
-        shapeLod.AddMember("texCoord0s", std::move(texCoords), *allocator);
+        writer.EndArray();
       }
       else {
         for (size_t i = 0; i < tri->vertices_n; i++) {
@@ -211,8 +202,8 @@ void ExportSL::geometry(struct Geometry* geometry)
           //fprintf(out, "vt %f %f\n", 0 * p.x, 0 * p.y);
         }
 
-        rj::Value indices(rj::kArrayType);
-        indices.Reserve(3 * tri->triangles_n, *allocator);
+        writer.Key("indices");
+        writer.StartArray();
         for (size_t i = 0; i < 3 * tri->triangles_n; i += 3) {
           auto a = tri->indices[i + 0];
           auto b = tri->indices[i + 1];
@@ -221,56 +212,38 @@ void ExportSL::geometry(struct Geometry* geometry)
           //  a + off_v, a + off_t, a + off_n,
           //  b + off_v, b + off_t, b + off_n,
           //  c + off_v, c + off_t, c + off_n);
-          indices.PushBack(a + off_v, *allocator);
-          indices.PushBack(a + off_t, *allocator);
-          indices.PushBack(a + off_n, *allocator);
-          indices.PushBack(b + off_v, *allocator);
-          indices.PushBack(b + off_t, *allocator);
-          indices.PushBack(b + off_n, *allocator);
-          indices.PushBack(c + off_v, *allocator);
-          indices.PushBack(c + off_t, *allocator);
-          indices.PushBack(c + off_n, *allocator);
+          writer.Uint(a + off_v);
+          writer.Uint(a + off_t);
+          writer.Uint(a + off_n);
+          writer.Uint(b + off_v);
+          writer.Uint(b + off_t);
+          writer.Uint(b + off_n);
+          writer.Uint(c + off_v);
+          writer.Uint(c + off_t);
+          writer.Uint(c + off_n);
         }
-        shapeLod.AddMember("indices", std::move(indices), *allocator);
+        writer.EndArray();
       }
-
-      off_v += tri->vertices_n;
-      off_n += tri->vertices_n;
-      off_t += tri->vertices_n;
     }
   }
   // /* End ShapeSet */
-  rj::Pointer(tokenStack.data(), tokenStack.size()).Set(jDoc, shapeLod);
-  auto& token = tokenStack.back();
-  rj::SizeType i = token.index + 1;
-  token = INDEX(i);
+  writer.EndObject();
 }
 
 void ExportSL::endGeometries()
 {
-  // The top of the stack should have an index value greater than 0
-  assert(tokenStack.back().index != rj::kPointerInvalidIndex);
-  tokenStack.pop_back();
-  // The next index value should be 0
-  assert(tokenStack.back().index == 0);
-  tokenStack.pop_back();
-  // This value should also be 0
-  assert(tokenStack.back().index == 0);
-  tokenStack.pop_back();
-  // This token should have the name "shapeLods"
-  assert(tokenStack.back().index == rj::kPointerInvalidIndex);
-  tokenStack.pop_back();
-  // This token should point inside a parts array,
-  // for our logic to work its value should always be zero
-  assert(tokenStack.back().index == 0);
-  tokenStack.pop_back();
-  // This token should be named "parts"
-  assert(tokenStack.back().index == rj::kPointerInvalidIndex);
-  tokenStack.pop_back();
+  // "shapeLods": [ [ [ ... ] ] ]
+  writer.EndArray();
+  writer.EndArray();
+  writer.EndArray();
+  // "parts": [ { ... } ]
+  writer.EndObject();
+  writer.EndArray();
 }
 
 inline void ExportSL::writeAttributes(rapidjson::Value& value, Group* group)
 {
+  /*
   // typeIdName = string // not this one
   // name = string
   value.AddMember("name", "UNNAMED", *allocator);
@@ -310,6 +283,7 @@ inline void ExportSL::writeAttributes(rapidjson::Value& value, Group* group)
 
   // components = ?
   attributes.AddMember("components", rj::Value(rj::kObjectType), *allocator);
+  */
 }
 
 #undef NAME

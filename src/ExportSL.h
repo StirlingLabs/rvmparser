@@ -15,6 +15,8 @@ class ExportSL final : public StoreVisitor
 public:
   ~ExportSL();
 
+  ExportSL(const char* path_obj);
+
   bool open(const char* path_obj);
 
   void init(class Store& store) override;
@@ -52,20 +54,13 @@ public:
   void endGeometries() override;
 
 private:
+  bool fileIsOpen = false;
   FILE* out = nullptr;
   Store* store = nullptr;
 
-  std::vector<rapidjson::Pointer::Token> tokenStack;
-
-  rapidjson::Document::AllocatorType* allocator = nullptr;
-  rapidjson::Document jDoc = nullptr;
-
-  rapidjson::StringBuffer buf;
-  rapidjson::Writer<rapidjson::StringBuffer> writer;
-
-  unsigned off_v = 1;
-  unsigned off_n = 1;
-  unsigned off_t = 1;
+  char* myBuf;
+  rapidjson::FileWriteStream os;
+  rapidjson::Writer<rapidjson::FileWriteStream> writer;
 
   void writeAttributes(rapidjson::Value& value, struct Group* group);
 };
