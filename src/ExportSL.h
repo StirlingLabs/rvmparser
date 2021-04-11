@@ -54,10 +54,14 @@ public:
 private:
   FILE* out = nullptr;
   Store* store = nullptr;
+
   std::vector<rapidjson::Pointer::Token> tokenStack;
-  //std::vector<rapidjson::Value> asmStack;
+
   rapidjson::Document::AllocatorType* allocator = nullptr;
   rapidjson::Document jDoc = nullptr;
+
+  rapidjson::StringBuffer buf;
+  rapidjson::Writer<rapidjson::StringBuffer> writer;
 
   unsigned off_v = 1;
   unsigned off_n = 1;

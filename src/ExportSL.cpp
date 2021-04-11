@@ -54,6 +54,9 @@ void ExportSL::init(class Store& store) {
   
   jDoc = rj::Document(rj::kObjectType);
   allocator = &jDoc.GetAllocator();
+
+  buf = rj::StringBuffer();
+  writer.Reset(buf);
 }
 
 void ExportSL::beginModel(Group* group)
