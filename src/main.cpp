@@ -21,6 +21,7 @@
 #include <cctype>
 #include <chrono>
 #include <algorithm>
+#include <string>
 
 #include "Parser.h"
 #include "Tessellator.h"
@@ -32,6 +33,7 @@
 #include "ChunkTiny.h"
 #include "AddGroupBBox.h"
 #include "Colorizer.h"
+#include "LinAlgOps.h"
 
 
 void logger(unsigned level, const char* msg, ...)
@@ -330,6 +332,43 @@ int main(int argc, char** argv)
       continue;
     }
   }
+
+  if (true) {
+
+    Group* file_group = store->newGroup(nullptr, Group::Kind::File);
+    file_group->file.info = store->strings.intern("some file info");
+    file_group->file.note = store->strings.intern("some file note");
+    file_group->file.date = store->strings.intern("some file date");
+    file_group->file.user = store->strings.intern("some file user");
+    file_group->file.encoding = store->strings.intern("UTF-8");
+
+    Group* model_group = store->newGroup(file_group, Group::Kind::Model);
+    model_group->model.project = store->strings.intern("some model project");
+    model_group->model.name = store->strings.intern("some model name");
+
+    Group* root_group = store->newGroup(model_group, Group::Kind::Group);
+    root_group->group.name = store->strings.intern("root");
+
+    for(int i=0; i<3; i++)  {
+      Group* obj = store->newGroup(root_group, Group::Kind::Group);
+      obj->group.name = store->strings.intern((std::string("root") + std::to_string(i)).c_str());
+      obj->group.material = i;
+
+      Geometry* g = store->newGeometry(obj);
+      g->kind = Geometry::Kind::Sphere;
+      g->sphere.diameter = 2.f;
+      g->M_3x4.cols[0] = Vec3f(1.f, 0.f, 0.f);
+      g->M_3x4.cols[1] = Vec3f(0.f, 1.f, 0.f);
+      g->M_3x4.cols[2] = Vec3f(0.f, 0.f, 1.f);
+      g->M_3x4.cols[3] = Vec3f(3.f * (i - 1.f), 0.f, 0.f);
+      g->bboxLocal.min = Vec3f(-1.f);
+      g->bboxLocal.max = Vec3f(0.f);
+      g->bboxWorld = transform(g->M_3x4, g->bboxLocal);
+    }
+
+
+  }
+
 
   if ((rv == 0) && should_colorize) {
     Colorizer colorizer(logger, color_attribute.empty() ? nullptr : color_attribute.c_str());
