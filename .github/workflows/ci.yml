@@ -25,6 +25,31 @@ jobs:
         path: |
           make/rvmparser
         if-no-files-found: error
+  macos:
+    name: macos
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Init Git Submodule 
+      run: |  
+        git submodule update --init --recursive
+
+    - name: configure and build
+      run: |
+        cd make
+        make all
+      env:
+        CXX: "clang++"
+        CC: "clang"
+        
+    - uses: actions/upload-artifact@v2
+      name: meshoptimizer-osx
+      with:
+        name: meshoptimizer-osx
+        path: |
+          libmeshoptimizer.dylib
+          src/meshoptimizer.h
+        if-no-files-found: error        
   win:
     name: windows
     runs-on: windows-latest
