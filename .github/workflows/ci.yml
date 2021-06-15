@@ -12,7 +12,9 @@ jobs:
 
     - name: configure and build
       run: |
-        src/make all
+        cd make
+        make all
+      
     - uses: actions/upload-artifact@v2
       name: rvmparser-linux
       with:
