@@ -1,0 +1,22 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  linux:
+    name: ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Init Git Submodule 
+      run: |  
+        git submodule update --init --recursive
+
+    - name: configure and build
+      run: |
+        src/make all
+    - uses: actions/upload-artifact@v2
+      name: rvmparser-linux
+      with:
+        name: rvmparser-linux
+        path: |
+          make/rvmparser
+        if-no-files-found: error
