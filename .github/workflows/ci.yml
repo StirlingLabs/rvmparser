@@ -79,26 +79,26 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: rvmparser-linux
-          path: linux
+          path: artifacts/linux
 
       - name: Download rvmparser osx
         uses: actions/download-artifact@v2
         with:
           name: rvmparser-osx
-          path: osx        
+          path: artifacts/osx        
 
       - name: Download rvmparser windows
         uses: actions/download-artifact@v2
         with:
           name: rvmparser-win64
-          path: win
+          path: artifacts/win
 
       - name: Zip file
         run: |
-          mkdir artifacts 
-          cd win && tar -zcvf rvmparser-win.tar.gz rvmparser.exe && cp rvmparser-win.tar.gz ../artifacts
-          cd osx && tar -zcvf rvmparser-osx.tar.gz rvmparser && cp rvmparser-osx.tar.gz ../artifacts
-          cd linux && tar -zcvf rvmparser-linux.tar.gz rvmparser && cp rvmparser-linux.tar.gz ../artifacts
+          tar czf artifacts/rvmparser-win.tar.gz -C artifacts/win rvmparser.exe
+          tar czf artifacts/rvmparser-osx.tar.gz -C artifacts/osx rvmparser
+          tar czf artifacts/rvmparser-linux.tar.gz -C artifacts/linux rvmparser
+
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
