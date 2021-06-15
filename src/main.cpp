@@ -5,6 +5,13 @@
 #include <Windows.h>
 #else
 
+#if __linux__
+#include <linux/version.h>
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,22)
+#define _MAP_POPULATE_AVAILABLE
+#endif
+#endif
+
 #ifdef _MAP_POPULATE_AVAILABLE
 #define MMAP_FLAGS (MAP_PRIVATE | MAP_POPULATE)
 #else
@@ -105,7 +112,7 @@ processFile(const std::string& path, F f)
       logger(2, "%s: fstat failed: %s", path.c_str(), strerror(errno));
     }
     else {
-      void * ptr = mmap(nullptr, stat.st_size, PROT_READ, MAP_PRIVATE|MAP_POPULATE, fd, 0);
+      void * ptr = mmap(nullptr, stat.st_size, PROT_READ, MMAP_FLAGS, fd, 0);
       if(ptr == MAP_FAILED) {
         logger(2, "%s: mmap failed: %s", path.c_str(), strerror(errno));
       }
