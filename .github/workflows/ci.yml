@@ -25,3 +25,22 @@ jobs:
         path: |
           make/rvmparser
         if-no-files-found: error
+  win:
+    name: windows
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Init Git Submodule 
+      run: |  
+        git submodule update --init --recursive
+    - name: configure and build
+      run: |
+        cd msvc15
+        msbuild rvmparser.vcxproj /t:rebuild /p:configuration=Release /p:platform=x64
+    - uses: actions/upload-artifact@v2
+      name: rvmparser-win
+      with:
+        name: rvmparser-win64
+        path: |
+          msvc15/x64/Release/rvmparser.exe
+        if-no-files-found: error        
