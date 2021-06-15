@@ -41,14 +41,13 @@ jobs:
       env:
         CXX: "clang++"
         CC: "clang"
-        
+
     - uses: actions/upload-artifact@v2
-      name: meshoptimizer-osx
+      name: rvmparser-osx
       with:
-        name: meshoptimizer-osx
+        name: rvmparser-osx
         path: |
-          libmeshoptimizer.dylib
-          src/meshoptimizer.h
+          make/rvmparser
         if-no-files-found: error        
   win:
     name: windows
