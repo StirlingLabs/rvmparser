@@ -72,7 +72,7 @@ jobs:
         if-no-files-found: error
   create-release:
     runs-on: ubuntu-latest
-    needs: [linux,win,osx]
+    needs: [linux,win,macos]
     steps:
       - name: Download rvmparser linux
         uses: actions/download-artifact@v2
