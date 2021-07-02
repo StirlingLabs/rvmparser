@@ -139,88 +139,57 @@ void ExportSL::geometry(struct Geometry* geometry)
 
   auto scale = 1.f;
 
-  if (geometry->kind == Geometry::Kind::Line) {}
-  else {
-    assert(geometry->triangulation);
-    auto* tri = geometry->triangulation;
+  assert(geometry->triangulation);
+  auto* tri = geometry->triangulation;
 
-    if (tri->indices != 0) {
-      //fprintf(out, "g\n");
-      if (geometry->triangulation->error != 0.f) {
-        //fprintf(out, "# error=%f\n", geometry->triangulation->error);
-      }
+  if (tri->indices != 0) {
 
-      // Vertices
-      {
-        writer.Key("vertices");
-        writer.StartArray();
-        for (size_t i = 0; i < 3 * tri->vertices_n; i += 3) {
+    // Indices
+    writer.Key("indices");
+    writer.StartArray();
+    for (size_t i = 0; i < 3 * tri->triangles_n; i++) {
+      writer.Uint(tri->indices[i]);
+    }
+    writer.EndArray();
 
-          auto p = scale * mul(geometry->M_3x4, Vec3f(tri->vertices + i));
+    // Vertices
+    writer.Key("vertices");
+    writer.StartArray();
+    for (size_t i = 0; i < 3 * tri->vertices_n; i += 3) {
 
-          //fprintf(out, "v %f %f %f\n", p.x, p.y, p.z);
-          writer.Double(p.x);
-          writer.Double(p.y);
-          writer.Double(p.z);
-        }
-        writer.EndArray();
-      }
+      auto p = scale * mul(geometry->M_3x4, Vec3f(tri->vertices + i));
 
-      // Normals
-      {
-        writer.Key("normals");
-        writer.StartArray();
-        for (size_t i = 0; i < 3 * tri->vertices_n; i += 3) {
-          auto n = normalize(mul(Mat3f(geometry->M_3x4.data), Vec3f(tri->normals + i)));
+      //fprintf(out, "v %f %f %f\n", p.x, p.y, p.z);
+      writer.Double(p.x);
+      writer.Double(p.y);
+      writer.Double(p.z);
+    }
+    writer.EndArray();
 
-          //fprintf(out, "vn %f %f %f\n", n.x, n.y, n.z);
+    // Normals
+    writer.Key("normals");
+    writer.StartArray();
+    for (size_t i = 0; i < 3 * tri->vertices_n; i += 3) {
+      auto n = normalize(mul(Mat3f(geometry->M_3x4.data), Vec3f(tri->normals + i)));
+
+      //fprintf(out, "vn %f %f %f\n", n.x, n.y, n.z);
           
-          writer.Double(std::isnan(n.x) ? 0 : n.x);
-          writer.Double(std::isnan(n.y) ? 0 : n.y);
-          writer.Double(std::isnan(n.z) ? 0 : n.z);
-        }
-        writer.EndArray();
-      }
+      writer.Double(std::isnormal(n.x) ? n.x : 0);
+      writer.Double(std::isnormal(n.x) ? n.y : 0);
+      writer.Double(std::isnormal(n.x) ? n.z : 0);
+    }
+    writer.EndArray();
 
-      if (tri->texCoords) {
-        writer.Key("texCoord0s");
-        writer.StartArray();
-        for (size_t i = 0; i < tri->vertices_n; i++) {
-          const Vec2f vt(tri->texCoords + 2 * i);
-          //fprintf(out, "vt %f %f\n", vt.x, vt.y);
-          writer.Double(vt.x);
-          writer.Double(vt.y);
-        }
-        writer.EndArray();
+    if (tri->texCoords) {
+      writer.Key("texCoord0s");
+      writer.StartArray();
+      for (size_t i = 0; i < tri->vertices_n; i++) {
+        const Vec2f vt(tri->texCoords + 2 * i);
+        //fprintf(out, "vt %f %f\n", vt.x, vt.y);
+        writer.Double(vt.x);
+        writer.Double(vt.y);
       }
-      else {
-        for (size_t i = 0; i < tri->vertices_n; i++) {
-          auto p = scale * mul(geometry->M_3x4, Vec3f(tri->vertices + 3 * i));
-          //fprintf(out, "vt %f %f\n", 0 * p.x, 0 * p.y);
-        }
-
-        writer.Key("indices");
-        writer.StartArray();
-        for (size_t i = 0; i < 3 * tri->triangles_n; i += 3) {
-          auto a = tri->indices[i + 0];
-          auto b = tri->indices[i + 1];
-          auto c = tri->indices[i + 2];
-          //fprintf(out, "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-          //  a + off_v, a + off_t, a + off_n,
-          //  b + off_v, b + off_t, b + off_n,
-          //  c + off_v, c + off_t, c + off_n);
-          writer.Uint(a + off_v);
-          writer.Uint(a + off_t);
-          writer.Uint(a + off_n);
-          writer.Uint(b + off_v);
-          writer.Uint(b + off_t);
-          writer.Uint(b + off_n);
-          writer.Uint(c + off_v);
-          writer.Uint(c + off_t);
-          writer.Uint(c + off_n);
-        }
-        writer.EndArray();
-      }
+      writer.EndArray();
     }
   }
   // /* End ShapeSet */
