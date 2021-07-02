@@ -4,9 +4,6 @@
 #include "Store.h"
 #include "LinAlgOps.h"
 
-#define NAME(s) { s, sizeof(s) / sizeof(s[0]) - 1, rapidjson::kPointerInvalidIndex }
-#define INDEX(i) { #i, sizeof(#i) - 1, i }
-
 namespace rj = rapidjson;
 
 namespace {
@@ -285,6 +282,3 @@ inline void ExportSL::writeAttributes(rapidjson::Value& value, Group* group)
   attributes.AddMember("components", rj::Value(rj::kObjectType), *allocator);
   */
 }
-
-#undef NAME
-#undef INDEX
