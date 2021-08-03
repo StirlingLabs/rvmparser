@@ -3,7 +3,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
-
+#include <stdio.h>
+#include <stdlib.h>
 namespace {
 
   template<typename T>

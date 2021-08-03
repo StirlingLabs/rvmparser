@@ -1,0 +1,102 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  linux:
+    name: ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: configure and build
+      run: |
+        cd make
+        make all
+      env:
+        CXX: "clang++"
+        CC: "clang"
+
+    - uses: actions/upload-artifact@v2
+      name: rvmparser-linux
+      with:
+        name: rvmparser-linux
+        path: |
+          make/rvmparser
+        if-no-files-found: error
+  macos:
+    name: macos
+    runs-on: macos-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: configure and build
+      run: |
+        cd make
+        make all
+      env:
+        CXX: "clang++"
+        CC: "clang"
+    - uses: actions/upload-artifact@v2
+      name: rvmparser-osx
+      with:
+        name: rvmparser-osx
+        path: |
+          make/rvmparser
+        if-no-files-found: error
+  win:
+    name: windows
+    runs-on: windows-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: configure and build
+      run: |
+        cd msvc15
+        msbuild rvmparser.vcxproj /t:rebuild /p:configuration=Release /p:platform=x64
+    - uses: actions/upload-artifact@v2
+      name: rvmparser-win
+      with:
+        name: rvmparser-win64
+        path: |
+          msvc15/x64/Release/rvmparser.exe
+        if-no-files-found: error
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [linux,win,macos]
+    steps:
+      - name: Download rvmparser linux
+        uses: actions/download-artifact@v2
+        with:
+          name: rvmparser-linux
+          path: artifacts/linux
+      - name: Download rvmparser osx
+        uses: actions/download-artifact@v2
+        with:
+          name: rvmparser-osx
+          path: artifacts/osx
+      - name: Download rvmparser windows
+        uses: actions/download-artifact@v2
+        with:
+          name: rvmparser-win64
+          path: artifacts/win
+      - name: Zip file
+        run: |
+          tar czf artifacts/rvmparser-win.tar.gz -C artifacts/win rvmparser.exe
+          tar czf artifacts/rvmparser-osx.tar.gz -C artifacts/osx rvmparser
+          tar czf artifacts/rvmparser-linux.tar.gz -C artifacts/linux rvmparser
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: rvmparser
+          files: |
+            artifacts/*.*
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
