@@ -21,11 +21,13 @@
 #include <cctype>
 #include <chrono>
 #include <algorithm>
+#include <iostream>
+#include <sstream>
 
 #include "Parser.h"
 #include "Tessellator.h"
 #include "ExportObj.h"
-#include "ExportSL.h"
+#include "ExportStirlingJson.h"
 #include "Store.h"
 #include "Flatten.h"
 #include "AddStats.h"
@@ -134,6 +136,7 @@ void printHelp(const char* argv0)
   fprintf(stderr, "    --discard-groups=filename.txt  Provide a list of group names to discard, one name per\n");
   fprintf(stderr, "                                   line. Groups with its name in this list will be\n");
   fprintf(stderr, "                                   discarded along with its children.\n");
+  fprintf(stderr, "    --output-sl=filename.json      Write geometry to a Stirling Labs JSON file.\n");
   fprintf(stderr, "    --output-json=filename.json    Write hierarchy with attributes to a json file.\n");
   fprintf(stderr, "    --output-txt=filename.txt      Dump all group names to a text file.\n");
   fprintf(stderr, "    --output-obj=filenamestem      Write geometry to an obj file, .obj and .mtl\n");
@@ -163,15 +166,15 @@ int main(int argc, char** argv)
   std::string output_json;
   std::string output_txt;
   std::string output_obj_stem;
-  std::string color_attribute;
   std::string output_sl;
+  std::string color_attribute;
   
 
   std::vector<std::string> attributeSuffices = { ".txt",  ".att" };
 
   Store* store = new Store();
 
-
+  // Handle command line
   std::string stem;
   for (int i = 1; i < argc; i++) {
     auto arg = std::string(argv[i]);
@@ -212,6 +215,11 @@ int main(int argc, char** argv)
           should_tessellate = true;
           continue;
         }
+        else if (key == "--output-sl") {
+            output_sl = val;
+            should_tessellate = true;
+            continue;
+        }
         else if (key == "--color-attribute") {
           color_attribute = val;
           continue;
@@ -226,11 +234,6 @@ int main(int argc, char** argv)
         }
         else if (key == "--chunk-tiny") {
           chunkTinyVertexThreshold = std::stoul(val);
-          should_tessellate = true;
-          continue;
-        }
-        else if (key == "--output-sl") {
-          output_sl = val;
           should_tessellate = true;
           continue;
         }
@@ -288,7 +291,6 @@ int main(int argc, char** argv)
       rv = -1;
     }
   } 
-
 
   if (rv == 0) {
     connect(store, logger);
@@ -381,6 +383,8 @@ int main(int argc, char** argv)
     }
   }
 
+
+// OBJ
   if (rv == 0 && !output_obj_stem.empty()) {
     assert(should_tessellate);
  
@@ -400,21 +404,20 @@ int main(int argc, char** argv)
     }
   }
 
+  // SL JSON
   if (rv == 0 && !output_sl.empty()) {
     assert(should_tessellate);
-
     auto time0 = std::chrono::high_resolution_clock::now();
-    ExportSL exportSL(output_sl.c_str());
-    if (exportSL.open(output_sl.c_str())) {
-      store->apply(&exportSL);
-
-      auto time1 = std::chrono::high_resolution_clock::now();
-      auto e = std::chrono::duration_cast<std::chrono::milliseconds>((time1 - time0)).count();
-      logger(0, "Exported sl into %s.json (%lldms)", output_obj_stem.c_str(), e);
+    ExportStirlingJson sl(store, logger, output_sl.c_str());
+    if (sl.success)
+    {
+        auto time1 = std::chrono::high_resolution_clock::now();
+        auto e = std::chrono::duration_cast<std::chrono::milliseconds>((time1 - time0)).count();
+        logger(0, "Wrote SL-JSON format into %s (%lldms).\n", output_sl.c_str(), e);
     }
     else {
-      logger(2, "Failed to export json file.\n");
-      rv = -1;
+        logger(2, "Failed to export json file.\n");
+        rv = -1;
     }
   }
 

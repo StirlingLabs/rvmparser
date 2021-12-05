@@ -6,86 +6,50 @@
 
 namespace rj = rapidjson;
 
-namespace {
-
-  bool open_w(FILE** f, const char* path)
-  {
-#ifdef _WIN32
-    auto err = fopen_s(f, path, "w");
-    if (err == 0) return true;
-
-    char buf[1024];
-    if (strerror_s(buf, sizeof(buf), err) != 0) {
-      buf[0] = '\0';
-    }
-    fprintf(stderr, "Failed to open %s for writing: %s", path, buf);
-#else
-    * f = fopen(path, "w");
-    if (*f != nullptr) return true;
-
-    fprintf(stderr, "Failed to open %s for writing.", path);
-#endif
-    return false;
-  }
-
-}
-
 ExportSL::~ExportSL()
 {
-  if (out) {
-    fclose(out);
-  }
-  if (myBuf) {
-    delete myBuf;
-  }
 }
 
-ExportSL::ExportSL(const char* path_obj) : fileIsOpen(open_w(&out, path_obj)), myBuf(new char[2 << 16]), os(rj::FileWriteStream(out, myBuf, 2 << 16))
+ExportSL::ExportSL(Logger logger, std::FILE* filePointer, char* buffer, size_t bufferSize) : logger(logger), os(rj::FileWriteStream(filePointer, buffer, bufferSize))
 {
-}
-
-bool ExportSL::open(const char* path_obj)
-{
-  //return (fileIsOpen = open_w(&out, path_obj));
-  return fileIsOpen;
 }
 
 void ExportSL::init(class Store& store) {
-  assert(fileIsOpen);
+      this->store = &store;
+  
+      // Currently assuming there is only one file per export
+      assert(!store.getFirstRoot()->next);
 
-  this->store = &store;
-  // Currently assuming there is only one file per export
-  assert(!store.getFirstRoot()->next);
-
-  writer.Reset(this->os);
+      writer.Reset(this->os);
 }
 
 void ExportSL::beginModel(Group* group)
 {
-  // Begin Root Object
-  writer.StartObject();
-  writer.Key("transformsTransposed");
-  writer.Bool(false);
-  writer.Key("rotationsTransposed");
-  writer.Bool(false);
+    // Begin Root Object
+    writer.StartObject();
+    writer.Key("transformsTransposed");
+    writer.Bool(false);
+    writer.Key("rotationsTransposed");
+    writer.Bool(false);
 
-  // Begin root assembly
-  writer.Key("root");
-  writer.StartObject();
-  writer.Key("typeIdName");
-  writer.String("JtkAssembly");
-  writer.Key("assemblies");
-  writer.StartArray();
+    // Begin root assembly
+    writer.Key("root");
+    writer.StartObject();
+    writer.Key("typeIdName");
+    writer.String("JtkAssembly");
+    writer.Key("assemblies");
+    writer.StartArray();
 }
 
 void ExportSL::endModel()
 {
-  // Write to file
-  writer.EndArray();
-  writer.EndObject();
-  writer.EndObject();
-  assert(writer.IsComplete());
-  writer.Flush();
+    writer.EndArray();
+    writer.EndObject();
+    writer.EndObject();
+    success = writer.IsComplete();
+    assert(success);
+    // Write to file
+    writer.Flush();
 }
 
 void ExportSL::beginGroup(Group* group)
