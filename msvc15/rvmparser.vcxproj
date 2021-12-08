@@ -170,6 +170,8 @@
     <ClCompile Include="..\src\ExportGLTF.cpp" />
     <ClCompile Include="..\src\ExportJson.cpp" />
     <ClCompile Include="..\src\ExportObj.cpp" />
+	<ClCompile Include="..\src\ExportStirlingJson.cpp" />
+    <ClCompile Include="..\src\ExportSL.cpp" />
     <ClCompile Include="..\src\ExportRev.cpp" />
     <ClCompile Include="..\src\Flatten.cpp" />
     <ClCompile Include="..\src\LinAlgOps.cpp" />
@@ -232,6 +234,8 @@
     <ClInclude Include="..\src\Common.h" />
     <ClInclude Include="..\src\DumpNames.h" />
     <ClInclude Include="..\src\ExportObj.h" />
+    <ClInclude Include="..\src\ExportStirlingJson.h" />
+    <ClInclude Include="..\src\ExportSL.h" />
     <ClInclude Include="..\src\Flatten.h" />
     <ClInclude Include="..\src\LinAlg.h" />
     <ClInclude Include="..\src\LinAlgOps.h" />

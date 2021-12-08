@@ -35,10 +35,13 @@
 #include <cctype>
 #include <chrono>
 #include <algorithm>
+#include <iostream>
+#include <sstream>
 
 #include "Parser.h"
 #include "Tessellator.h"
 #include "ExportObj.h"
+#include "ExportStirlingJson.h"
 #include "Store.h"
 #include "Flatten.h"
 #include "AddStats.h"
@@ -150,6 +153,7 @@ Options:
   --discard-groups=filename.txt       Provide a list of group names to discard, one name per line.
                                       Groups with its name in this list will be discarded along
                                       with its children. Default is no groups are discarded.
+  --output-sl=filename.json           Write geometry to a Stirling Labs JSON file.
   --output-json=<filename.json>       Write hierarchy with attributes to a json file.
   --output-txt=<filename.txt>         Dump all group names to a text file.
   --output-rev=filename.rev           Write database as a text review file.
@@ -223,12 +227,14 @@ int main(int argc, char** argv)
 
   std::string output_rev;
   std::string output_obj_stem;
+  std::string output_sl;
   std::string color_attribute;
   
 
   std::vector<std::string> attributeSuffices = { ".txt",  ".att" };
 
   Store* store = new Store();
+  // Handle command line
 
 
   std::string stem;
@@ -272,6 +278,12 @@ int main(int argc, char** argv)
         }
         else if (key == "--output-obj") {
           output_obj_stem = val;
+          should_tessellate = true;
+          should_colorize = true;
+          continue;
+        }
+        else if (key == "--output-sl") {
+          output_sl = val;
           should_tessellate = true;
           should_colorize = true;
           continue;
@@ -470,6 +482,7 @@ int main(int argc, char** argv)
     }
   }
 
+// OBJ
   if (rv == 0 && !output_obj_stem.empty()) {
     assert(should_tessellate);
  
@@ -489,6 +502,24 @@ int main(int argc, char** argv)
     }
   }
 
+  // SL JSON
+  if (rv == 0 && !output_sl.empty()) {
+    assert(should_tessellate);
+    auto time0 = std::chrono::high_resolution_clock::now();
+    ExportStirlingJson sl(store, logger, output_sl.c_str());
+    if (sl.success)
+    {
+      auto time1 = std::chrono::high_resolution_clock::now();
+      auto e = std::chrono::duration_cast<std::chrono::milliseconds>((time1 - time0)).count();
+      logger(0, "Wrote SL-JSON format into %s (%lldms).\n", output_sl.c_str(), e);
+    }
+    else {
+      logger(2, "Failed to export json file.\n");
+      rv = -1;
+    }
+  }
+
+  // GLTF
   if (rv == 0 && !output_gltf.empty()) {
     assert(should_tessellate);
     auto time0 = std::chrono::high_resolution_clock::now();

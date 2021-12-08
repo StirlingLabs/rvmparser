@@ -49,6 +49,9 @@
     <ClInclude Include="..\src\ExportObj.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\ExportSL.h">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Store.h">
       <Filter>src</Filter>
     </ClInclude>

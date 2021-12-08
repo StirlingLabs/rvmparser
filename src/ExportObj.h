@@ -4,7 +4,7 @@
 #include "Common.h"
 #include "StoreVisitor.h"
 
-class ExportObj : public StoreVisitor
+class ExportObj final : public StoreVisitor
 {
 public:
   bool groupBoundingBoxes = false;
