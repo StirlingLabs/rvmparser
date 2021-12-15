@@ -23,32 +23,32 @@
     <ProjectGuid>{79D6C969-684A-4D66-AF59-561F0CF09679}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>rvmparser</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -167,9 +167,12 @@
     <ClCompile Include="..\src\Connect.cpp" />
     <ClCompile Include="..\src\DiscardGroups.cpp" />
     <ClCompile Include="..\src\DumpNames.cpp" />
+    <ClCompile Include="..\src\ExportGLTF.cpp" />
     <ClCompile Include="..\src\ExportJson.cpp" />
     <ClCompile Include="..\src\ExportObj.cpp" />
+	<ClCompile Include="..\src\ExportStirlingJson.cpp" />
     <ClCompile Include="..\src\ExportSL.cpp" />
+    <ClCompile Include="..\src\ExportRev.cpp" />
     <ClCompile Include="..\src\Flatten.cpp" />
     <ClCompile Include="..\src\LinAlgOps.cpp" />
     <ClCompile Include="..\src\main.cpp" />
@@ -231,6 +234,7 @@
     <ClInclude Include="..\src\Common.h" />
     <ClInclude Include="..\src\DumpNames.h" />
     <ClInclude Include="..\src\ExportObj.h" />
+    <ClInclude Include="..\src\ExportStirlingJson.h" />
     <ClInclude Include="..\src\ExportSL.h" />
     <ClInclude Include="..\src\Flatten.h" />
     <ClInclude Include="..\src\LinAlg.h" />

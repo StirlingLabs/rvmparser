@@ -6,6 +6,7 @@
 #include <rapidjson/filewritestream.h>
 #include <rapidjson/document.h>
 #include <rapidjson/pointer.h>
+#include <rapidjson/writer.h>
 
 #include "Common.h"
 #include "StoreVisitor.h"
@@ -15,9 +16,11 @@ class ExportSL final : public StoreVisitor
 public:
   ~ExportSL();
 
-  ExportSL(const char* path_obj);
+  ExportSL(Logger logger, std::FILE* filePointer, char* buffer, size_t bufferSize);
 
-  bool open(const char* path_obj);
+  bool success = false;
+
+  //bool open(const char* path_obj);
 
   void init(class Store& store) override;
 
@@ -57,6 +60,7 @@ private:
   bool fileIsOpen = false;
   FILE* out = nullptr;
   Store* store = nullptr;
+  Logger logger = nullptr;
 
   char* myBuf;
   rapidjson::FileWriteStream os;
