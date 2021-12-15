@@ -1,8 +1,10 @@
 #include <cstdio>
+#include <sstream>
 
 #include "ExportSL.h"
 #include "Store.h"
 #include "LinAlgOps.h"
+
 
 namespace rj = rapidjson;
 
@@ -58,6 +60,42 @@ void ExportSL::beginGroup(Group* group)
   writer.StartObject();
   writer.Key("typeIdName");
   writer.String("JtkAssembly");
+  writer.Key("name");
+  if (group->kind == Group::Kind::Model 
+      && group->model.name != std::string("")) {
+      writer.String(group->model.name);
+  }
+  else if (group->kind == Group::Kind::Group 
+           && group->group.name != std::string("")) {
+      writer.String(group->group.name);
+  }
+  else if (group->group.id != 0) {
+      std::ostringstream ss;
+      ss << "id " << group->group.id;
+      writer.String(ss.str().c_str());
+  }
+  else {
+      writer.String("Unnamed");
+  }
+
+  if (group->kind == Group::Kind::Group) {
+      writer.Key("nodeId");
+      int id = (int)group->group.id; //FIXME: ID should be a string or at least 64-bit
+      if (id < 0) {
+          id = 0;
+      }
+      writer.Int(id); 
+  }
+  if (group->kind == Group::Kind::Model) {
+      logger(0, "Group Model");
+      Color *c = group->model.colors.first;
+      
+      for (Color *p = group->model.colors.first; p <= group->model.colors.last; p++) {
+          Color c = *p;
+          logger(0, "Color %lu idx %lu (%u,%u,%u)", (unsigned long)c.colorIndex, (unsigned long)c.colorKind, c.rgb[0], c.rgb[1], c.rgb[2]);
+      }
+  }
+  
 }
 
 void ExportSL::EndGroup()
@@ -82,20 +120,30 @@ void ExportSL::beginGeometries(struct Group* container)
 {
   writer.Key("parts");
   writer.StartArray();
-  writer.StartObject();
-  writer.Key("typeIdName");
-  writer.String("JtkPart");
-  writer.Key("shapeLods");
-  writer.StartArray();
-  writer.StartArray();
-  writer.StartArray();
 }
 
 void ExportSL::geometry(struct Geometry* geometry)
 {
   if (geometry->kind == Geometry::Kind::Line)
+  {
+    logger(0, "Skipping line %u.", geometry->id);
     return;
+  }
 
+  // begin Part
+  writer.StartObject();
+  writer.Key("typeIdName");
+  writer.String("JtkPart");
+  writer.Key("name");
+  std::ostringstream ss;
+  ss << "id " << geometry->id;
+  writer.String(ss.str().c_str());
+  writer.Key("nodeId");
+  writer.Uint(geometry->id);
+  writer.Key("shapeLods");
+  writer.StartArray();
+  writer.StartArray();
+  writer.StartArray();
   // { /* Begin ShapeSet */
   writer.StartObject();
   writer.Key("typeIdName");
@@ -158,60 +206,100 @@ void ExportSL::geometry(struct Geometry* geometry)
   }
   // /* End ShapeSet */
   writer.EndObject();
-}
-
-void ExportSL::endGeometries()
-{
   // "shapeLods": [ [ [ ... ] ] ]
   writer.EndArray();
   writer.EndArray();
   writer.EndArray();
-  // "parts": [ { ... } ]
-  writer.EndObject();
-  writer.EndArray();
-}
 
-inline void ExportSL::writeAttributes(rapidjson::Value& value, Group* group)
-{
-  /*
-  // typeIdName = string // not this one
-  // name = string
-  value.AddMember("name", "UNNAMED", *allocator);
-  // version = int
-  value.AddMember("version", int(0), *allocator);
-  // nodeId = int
-  value.AddMember("nodeId", int(0), *allocator);
-  // units = string
-  value.AddMember("units", "mm", *allocator);
+  writer.Key("attributes");
+  writer.StartObject();
 
-  // attributes = JsonAttributes
-  rj::Value attributes = rj::Value(rj::kObjectType);
-  {
-    rj::Value material = rj::Value(rj::kObjectType);
-
-    rj::Value color = rj::Value(rj::kArrayType);
-    color.PushBack(int(0), *allocator);
-    color.PushBack(int(0), *allocator);
-    color.PushBack(int(0), *allocator);
-    color.PushBack(int(0), *allocator);
-
-    material.AddMember("ambient", color, *allocator);
-    material.AddMember("diffuse", color, *allocator);
-    material.AddMember("specular", color, *allocator);
-    material.AddMember("emission", color, *allocator);
-    material.AddMember("shininess", int(0), *allocator);
-    material.AddMember("bumpScale", int(0), *allocator);
-    material.AddMember("depthOffset", int(0), *allocator);
-
-    attributes.AddMember("material", std::move(material), *allocator);
+  //material
+  std::string colorName = "unknown";
+  if (geometry->colorName != nullptr) {
+      colorName = geometry->colorName;
   }
-   
+  double red = ((geometry->color >> 16) & 0xFF) / 255.0;
+  double green = ((geometry->color >> 8) & 0xFF) / 255.0;
+  double blue = ((geometry->color) & 0xFF) / 255.0;
+  double alpha = geometry->transparency / 100.0;
+  if (red == 0.0 && green == 0.0 && blue == 0.0 && alpha == 0.0
+      && colorName != "Black" && colorName != "black") {
+      logger(0, "%s: %lx (%f,%f,%f)", colorName.c_str(), geometry->color, red, green, blue);
+      red = 0.5;
+      green = 0.5;
+      blue = 0.5;
+      alpha = 1.0;
+  } else {
+      red = (red * 0.6) + 0.2;     //FIXME: colour grading should occur in Pipeline
+      green = (green * 0.6) + 0.2; //FIXME: colour grading should occur in Pipeline
+      blue = (blue * 0.6) + 0.2;   //FIXME: colour grading should occur in Pipeline
+  }
+  writer.Key("material");
+  writer.StartObject();
+
+  writer.Key("ambient");
+  writer.StartArray();
+  writer.Double(red);  
+  writer.Double(green);
+  writer.Double(blue);
+  writer.Double(alpha);
+  writer.EndArray();
+
+  writer.Key("diffuse");
+  writer.StartArray();
+  writer.Double(red);
+  writer.Double(green);
+  writer.Double(blue);
+  writer.Double(alpha);
+  writer.EndArray();
+
+  writer.Key("specular");
+  writer.StartArray();
+  writer.Double(red);
+  writer.Double(green);
+  writer.Double(blue);
+  writer.Double(alpha);
+  writer.EndArray();
+
+  writer.Key("emission");
+  writer.StartArray();
+  writer.Double(red);
+  writer.Double(green);
+  writer.Double(blue);
+  writer.Double(alpha);
+  writer.EndArray();
+
+  writer.EndObject(); // material
+  writer.EndObject(); // attributes
+
+  writer.Key("components");
+  writer.StartObject();
+  writer.Key("boundingBoxComponent");
+  writer.StartObject();
+  writer.Key("minCorner");
+  writer.StartArray();
+  writer.Double(geometry->bboxWorld.min[0]);
+  writer.Double(geometry->bboxWorld.min[1]);
+  writer.Double(geometry->bboxWorld.min[2]);
+  writer.EndArray();
+  writer.Key("maxCorner");
+  writer.StartArray();
+  writer.Double(geometry->bboxWorld.max[0]);
+  writer.Double(geometry->bboxWorld.max[1]);
+  writer.Double(geometry->bboxWorld.max[2]);
+  writer.EndArray();
+  writer.EndObject(); // boundingBoxComponent
+  writer.EndObject(); // components
+
   // publicProperties = {}
   // privateProperties = {}
-  attributes.AddMember("publicProperties", rj::Value(rj::kObjectType), *allocator);
-  attributes.AddMember("privateProperties", rj::Value(rj::kObjectType), *allocator);
 
-  // components = ?
-  attributes.AddMember("components", rj::Value(rj::kObjectType), *allocator);
-  */
+  writer.EndObject(); // part
+}
+
+void ExportSL::endGeometries()
+{
+    // "parts": [ { ... } ]
+    writer.EndArray();
 }
